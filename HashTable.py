@@ -55,10 +55,7 @@ class HashTable:
         mini = 15
         load = []
         for i, p in self:
-            print (p.distance)
             p.distance = distance_hash.distance_lookup(current_loc, p.address)
-            print (p.distance)
-            print(p.address)
             if p.distance < mini:
                 mini = p.distance
                 load.append(p)

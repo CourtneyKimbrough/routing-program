@@ -1,6 +1,7 @@
 # Student ID: 012648631
 
 import csv
+from datetime import timedelta
 
 from HashTable import HashTable
 from Package import Package
@@ -56,20 +57,76 @@ truck_2 = Truck()
 truck_3 = Truck()
 trucks = [truck_1, truck_2, truck_3]
 
+# Give trucks start times
+truck_1.start_time = timedelta(hours=8)
+truck_2.start_time = timedelta(hours=8)
+truck_3.start_time = timedelta(hours=8)
 
+# Function to load packages
+def load(truck, package):
+    truck.contents.append(package)
+    package_hash.remove(package.id)
+    package.status = "loaded"
 
+early = []
+semiearly = []
+group = []
+
+# Load packages with notes and deadlines:
+for i, p in package_hash:
+    note = p.notes
+    if "Must be delivered with" in note:
+        load(truck_1, p)
+    elif i == 13 or i == 15 or i ==19:
+        load(truck_1, p)
+    elif p.deadline == "9:00 AM" or p.deadline == "10:30 AM":
+        load(truck_2, p)
+    elif note == "Can only be on truck 2":
+        load(truck_2, p)
+    elif note == "Delayed on flight---will not arrive to depot until 9:05 am" or note == "Wrong address listed":
+        load(truck_3, p)
+
+# Load each of the trucks
 for truck in trucks:
+    exit_outer = False
     current_loc = "Hub"
-    while not package_hash.isempty() and len(truck.contents) < truck.max_packages:
-        tbl = package_hash.update_distances(current_loc, distance_hash)
-        for p in tbl:
-            truck.contents.append(p)
-            package_hash.remove(p)
+    while not package_hash.isempty() and len(truck.contents) < truck.max_packages: # Check if there are more packages and the truck is not full
+        tbl = package_hash.update_distances(current_loc, distance_hash) # Find all of the packages at the nearest address
+        for p in tbl: # For every package at the nearest location
+            if len(truck.contents) < truck.max_packages: # If there is still room on the truck
+                load(truck, p)
+                current_loc = p.address
+            else:
+                exit_outer = True # If the truck is full, stop loading it
+                break
+        if exit_outer:
+            break
+    print("truck")
+    for p in truck.contents:
+        print(p.id)
+
+def del_time(package, truck):
+    speed = truck.speed
+    dist = package.distance
+    return timedelta(hours=dist/speed)
+
+# Deliver packages
+for truck in trucks:
+    current_addr = "Hub"
+    for p in truck.contents:
+        p.distance = distance_hash.distance_lookup(current_addr, p.address)
+        truck.start_time += del_time(p, truck)
+        p.delivery_time = truck.start_time
+        print (p.id)
+        print (p.delivery_time)
+        current_addr = p.address
+
+
+
+
+
+
 '''
-
-
-
-
 
 #for p in package_hash:
     #print(p)
