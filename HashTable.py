@@ -9,6 +9,7 @@ class HashTable:
             return key % self.size
         return sum(ord(c) for c in key) % self.size # string-to-int conversion
     
+    # Insertion function that takes package ID and package object
     def insert(self, key, value):
         index = self.hash_function(key)
         self.table[index].append((key, value))
