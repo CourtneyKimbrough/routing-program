@@ -22,6 +22,7 @@ class HashTable:
                 return v.address, v.deadline, v.city, v.zip, v.weight, v.status, v.hub_depart
         return None
     
+    # Look up function that takes two locations and returns the distance between them
     def distance_lookup(self, key, key2):
         key = key.strip()
         key2 = key2.strip()
@@ -31,6 +32,7 @@ class HashTable:
                     return float(dist)
         print("not found")
     
+    # Function to remove element from hash table
     def remove(self, key):
         index = self.hash_function(key)
         for i, (k, v) in enumerate(self.table[index]):

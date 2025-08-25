@@ -87,9 +87,6 @@ def parse_deadline(dl):
         return datetime.strptime("11:59 PM", "%I:%M %p").time()
     return datetime.strptime(dl, "%I:%M %p").time()
 
-# Sort packages on Truck 2 by deadline
-truck_2.contents.sort(key=lambda p: parse_deadline(p.deadline))
-
 # Load each of the trucks
 for truck in trucks:
     exit_outer = False
@@ -134,8 +131,7 @@ def deliver(truck):
         p.distance = distance_hash.distance_lookup(current_addr, p.address)
         truck.mileage += p.distance
         truck.start_time += del_time(p, truck)
-        p.status[1] = truck.start_time
-        p.status[0] = "delivered"
+        p.status = ["delivered", truck.start_time]
         package_log.insert(p.id, p)
         truck.contents.remove(p)
         current_addr = p.address
