@@ -13,11 +13,12 @@ class HashTable:
         index = self.hash_function(key)
         self.table[index].append((key, value))
 
+    # Look up function that takes package ID and returns data
     def package_lookup(self, key):
         index = self.hash_function(key)
         for k, v in self.table[index]:
             if k == key:
-                return v.address, v.deadline, v.city, v.zip, v.weight, v.status
+                return v.address, v.deadline, v.city, v.zip, v.weight, v.status, v.hub_depart
         return None
     
     def distance_lookup(self, key, key2):

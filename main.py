@@ -1,7 +1,7 @@
 # Student ID: 012648631
 
 import csv
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from HashTable import HashTable
 from Package import Package
@@ -51,26 +51,21 @@ package_hash = load_packages('package.csv')
 # Create hash table of distances:
 distance_hash = load_distances('distances.csv')
 
-# Create 3 truck objects and add them to an array
-truck_1 = Truck()
-truck_2 = Truck()
-truck_3 = Truck()
-trucks = [truck_1, truck_2, truck_3]
+# Create empty package log hash
+package_log = HashTable(40)
 
-# Give trucks start times
-truck_1.start_time = timedelta(hours=8)
-truck_2.start_time = timedelta(hours=8)
-truck_3.start_time = timedelta(hours=8)
+# Create 3 truck objects and add them to an array
+truck_1 = Truck("truck_1")
+truck_2 = Truck("truck_2")
+truck_3 = Truck("truck_3")
+trucks = [truck_1, truck_2, truck_3]
 
 # Function to load packages
 def load(truck, package):
     truck.contents.append(package)
     package_hash.remove(package.id)
-    package.status = "loaded"
+    package.truck = truck.name
 
-early = []
-semiearly = []
-group = []
 
 # Load packages with notes and deadlines:
 for i, p in package_hash:
@@ -85,6 +80,15 @@ for i, p in package_hash:
         load(truck_2, p)
     elif note == "Delayed on flight---will not arrive to depot until 9:05 am" or note == "Wrong address listed":
         load(truck_3, p)
+
+# Parse deadlines 
+def parse_deadline(dl):
+    if dl == "EOD":
+        return datetime.strptime("11:59 PM", "%I:%M %p").time()
+    return datetime.strptime(dl, "%I:%M %p").time()
+
+# Sort packages on Truck 2 by deadline
+truck_2.contents.sort(key=lambda p: parse_deadline(p.deadline))
 
 # Load each of the trucks
 for truck in trucks:
@@ -110,30 +114,78 @@ def del_time(package, truck):
     dist = package.distance
     return timedelta(hours=dist/speed)
 
+# Chose the next package based on delivery deadline, then, distance
+def choose_next_package(truck, current_addr, distance_hash):
+    remaining = truck.contents
+    urgent = [p for p in remaining if parse_deadline(p.deadline) <= datetime.strptime("10:30 AM", "%I:%M %p").time()]
+    if urgent:
+        return min(urgent, key=lambda p: parse_deadline(p.deadline)) # Pick the one with the earliest deadline
+    else:
+        return min(remaining, key=lambda p: distance_hash.distance_lookup(current_addr, p.address)) # Otherwise pick nearest neighbor
+
 # Deliver packages
-for truck in trucks:
+def deliver(truck):
     current_addr = "Hub"
-    for p in truck.contents:
+
+    if truck.start_time >= timedelta(hours=10, minutes=20):
+        for p in truck.contents: 
+            if p.id == 9:  # package with delayed address update
+                p.address = "410 S State St"
+
+    while len(truck.contents) > 0:
+        p = choose_next_package(truck, current_addr, distance_hash)
         p.distance = distance_hash.distance_lookup(current_addr, p.address)
         truck.start_time += del_time(p, truck)
-        p.delivery_time = truck.start_time
-        print (p.id)
-        print (p.delivery_time)
+        p.status[1] = truck.start_time
+        p.status[0] = "delivered"
+        package_log.insert(p.id, p)
+        truck.contents.remove(p)
+        print(p.id, p.status[1])
         current_addr = p.address
+    dist = distance_hash.distance_lookup(current_addr, 'Hub')
+    truck.start_time += timedelta(hours=dist/18)
+    truck.return_time = truck.start_time
+    print("return time", truck.return_time)
+
+# Change package status to en route
+def en_route_status(truck):
+    for p in truck.contents:
+        p.status[0] = "en route"
+        p.hub_depart = truck.start_time
 
 
 
+# Give trucks start times and hub depature times
+truck_1.start_time = timedelta(hours=8)
+truck_2.start_time = timedelta(hours=8)
 
 
+en_route_status(truck_1)
+deliver(truck_1)
+en_route_status(truck_2)
+deliver(truck_2)
+truck_3.start_time = min(truck_1.return_time, truck_2.return_time) # Send out truck 3 when one of the other trucks gets back
+en_route_status(truck_3)
+deliver(truck_3)
 
-'''
+def get_package_status(pid, cur_time):
+    results = package_log.package_lookup(pid)
+    if cur_time < results[-1]:
+        return (f"Package {p.id} is at the hub at {cur_time}")
+    elif cur_time < results[-2][1]:
+        return (f"Package {p.id} is en route at {cur_time}")
+    else:
+        (f"Package {p.id} was delivered at {results[-2][1]}")
 
-#for p in package_hash:
-    #print(p)
-for from_loc, inner_hash in distance_hash:
-    print(from_loc)  # HUB, 1060 Dalton Ave S, etc.
-    for to_loc, dist in inner_hash:  # dist is a string
-        print(f"{to_loc}: {dist}")
+# CLI Interface
+print ("Welcome to the parcel service delivery system!")
+choice = input("What would you like to do? \n 1. Check delivery status for a package \n 2. Check delivery status for all packages 3. Check mileage traveled by delivery trucks")
 
-#print (distance_hash.distance_lookup("3575 W Valley Central Station bus Loop","2600 Taylorsville Blvd"))
-'''
+match choice:
+    case "1":
+        pid = int(input("Which package would you like to check?"))
+        cur_time = input("Enter the time you would like to check")
+        print(get_package_status(pid, cur_time))
+    #case 2:
+    #case 3:
+    #case _:

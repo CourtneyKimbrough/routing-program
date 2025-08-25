@@ -8,6 +8,7 @@ class Package:
         self.zip = zip
         self.weight = weight
         self.notes = notes
-        self.status = "undelivered"
-        self.delivery_time = None
+        self.status = ["at hub", None]
+        self.hub_depart = None
         self.distance = None
+        self.truck = None
