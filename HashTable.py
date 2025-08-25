@@ -21,14 +21,13 @@ class HashTable:
         return None
     
     def distance_lookup(self, key, key2):
-        index = self.hash_function(key)
-        for k, v in self.table[index]:
-            if k == key:
-                inner_ind = v.hash_function(key2)
-                for inner_k, inner_v in v.table[inner_ind]:
-                    if inner_k == key2:
-                        return inner_v
-        return None
+        key = key.strip()
+        key2 = key2.strip()
+        for from_loc, inner_hash in self:
+            for to_loc, dist in inner_hash:  # dist is a string
+                if from_loc == key and to_loc == key2:
+                    return float(dist)
+        print("not found")
     
     def remove(self, key):
         index = self.hash_function(key)
@@ -43,3 +42,26 @@ class HashTable:
         for section in self.table:
             for k, v in section:
                 yield k, v
+
+    # Function to check if hash table is empty
+    def isempty(self):
+        for p in self.table:
+            if p != []:
+                return False
+        return True
+    
+    # Function to update distance on each package
+    def update_distances(self, current_loc, distance_hash):
+        mini = 15
+        load = []
+        for i, p in self:
+            print (p.distance)
+            p.distance = distance_hash.distance_lookup(current_loc, p.address)
+            print (p.distance)
+            print(p.address)
+            if p.distance < mini:
+                mini = p.distance
+                load.append(p)
+            elif p.distance == mini:
+                load.append(p)
+        return load
