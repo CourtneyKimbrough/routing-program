@@ -168,14 +168,19 @@ truck_3.start_time = min(truck_1.return_time, truck_2.return_time) # Send out tr
 en_route_status(truck_3)
 deliver(truck_3)
 
+def parse_time_to_timedelta(time_str):
+    dt = datetime.strptime(time_str, "%I:%M %p")
+    return timedelta(hours=dt.hour, minutes=dt.minute)
+
 def get_package_status(pid, cur_time):
     results = package_log.package_lookup(pid)
+    cur_time = parse_time_to_timedelta(cur_time)
     if cur_time < results[-1]:
-        return (f"Package {p.id} is at the hub at {cur_time}")
+        return (f"Package {pid} is at the hub at {cur_time}")
     elif cur_time < results[-2][1]:
-        return (f"Package {p.id} is en route at {cur_time}")
+        return (f"Package {pid} is en route at {cur_time}")
     else:
-        (f"Package {p.id} was delivered at {results[-2][1]}")
+        return (f"Package {pid} was delivered at {results[-2][1]}")
 
 # CLI Interface
 print ("Welcome to the parcel service delivery system!")
@@ -184,7 +189,7 @@ choice = input("What would you like to do? \n 1. Check delivery status for a pac
 match choice:
     case "1":
         pid = int(input("Which package would you like to check?"))
-        cur_time = input("Enter the time you would like to check")
+        cur_time = input("Enter the time you would like to check (e.g. 10:00 AM)")
         print(get_package_status(pid, cur_time))
     #case 2:
     #case 3:
