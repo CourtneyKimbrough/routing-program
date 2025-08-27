@@ -55,9 +55,9 @@ distance_hash = load_distances('distances.csv')
 package_log = HashTable(40)
 
 # Create 3 truck objects and add them to an array
-truck_1 = Truck("truck_1")
-truck_2 = Truck("truck_2")
-truck_3 = Truck("truck_3")
+truck_1 = Truck("truck 1")
+truck_2 = Truck("truck 2")
+truck_3 = Truck("truck 3")
 trucks = [truck_1, truck_2, truck_3]
 
 # Function to load packages
@@ -66,20 +66,24 @@ def load(truck, package):
     package_hash.remove(package.id)
     package.truck = truck.name
 
-
 # Load packages with notes and deadlines:
 for i, p in package_hash:
     note = p.notes
     if "Must be delivered with" in note:
         load(truck_1, p)
-    elif i == 13 or i == 15 or i ==19:
-        load(truck_1, p)
-    elif p.deadline == "9:00 AM" or p.deadline == "10:30 AM":
-        load(truck_2, p)
     elif note == "Can only be on truck 2":
         load(truck_2, p)
+    elif i == 13 or i == 15 or i ==19:
+        load(truck_1, p)
     elif note == "Delayed on flight---will not arrive to depot until 9:05 am" or note == "Wrong address listed":
-        load(truck_3, p)
+        if p.deadline == "10:30 AM":
+            load(truck_3, p)
+        else:
+            load(truck_2, p)
+    
+
+
+
 
 # Parse deadlines 
 def parse_deadline(dl):
@@ -88,11 +92,13 @@ def parse_deadline(dl):
     return datetime.strptime(dl, "%I:%M %p").time()
 
 # Load each of the trucks
-for truck in trucks:
+def load_trucks(truck):
     exit_outer = False
     current_loc = "Hub"
     while not package_hash.isempty() and len(truck.contents) < truck.max_packages: # Check if there are more packages and the truck is not full
-        tbl = package_hash.update_distances(current_loc, distance_hash) # Find all of the packages at the nearest address
+        tbl = [p for p in package_hash.update_distances(current_loc, distance_hash)
+                if not (p.deadline != "EOD" and truck.name == "truck 2")]
+            # Find all of the packages at the nearest address
         for p in tbl: # For every package at the nearest location
             if len(truck.contents) < truck.max_packages: # If there is still room on the truck
                 load(truck, p)
@@ -103,6 +109,11 @@ for truck in trucks:
         if exit_outer:
             break
 
+load_trucks(truck_3)
+load_trucks(truck_1)
+load_trucks(truck_2)
+
+
 def del_time(package, truck):
     speed = truck.speed
     dist = package.distance
@@ -111,11 +122,24 @@ def del_time(package, truck):
 # Chose the next package based on delivery deadline, then, distance
 def choose_next_package(truck, current_addr, distance_hash):
     remaining = truck.contents
-    urgent = [p for p in remaining if parse_deadline(p.deadline) <= datetime.strptime("10:30 AM", "%I:%M %p").time()]
-    if urgent:
-        return min(urgent, key=lambda p: parse_deadline(p.deadline)) # Pick the one with the earliest deadline
-    else:
-        return min(remaining, key=lambda p: distance_hash.distance_lookup(current_addr, p.address)) # Otherwise pick nearest neighbor
+
+    def get_distance(p):
+        return distance_hash.distance_lookup(current_addr, p.address)
+
+    # Any package at distance 0
+    for p in remaining:
+        if get_distance(p) == 0:
+            return p
+
+    # Packages with deadlines
+    with_deadlines = [p for p in remaining if p.deadline]
+    if with_deadlines:
+        earliest_deadline = min(parse_deadline(p.deadline) for p in with_deadlines)
+        tied = [p for p in with_deadlines if parse_deadline(p.deadline) == earliest_deadline]
+        return min(tied, key=get_distance)
+
+    # Pick nearest
+    return min(remaining, key=get_distance)
 
 # Deliver packages
 def deliver(truck):
@@ -129,6 +153,7 @@ def deliver(truck):
     while len(truck.contents) > 0:
         p = choose_next_package(truck, current_addr, distance_hash)
         p.distance = distance_hash.distance_lookup(current_addr, p.address)
+        p.truck = truck.name
         truck.mileage += p.distance
         truck.start_time += del_time(p, truck)
         p.status = ["delivered", truck.start_time]
@@ -148,16 +173,16 @@ def en_route_status(truck):
 
 # Give trucks start times and hub depature times
 truck_1.start_time = timedelta(hours=8)
-truck_2.start_time = timedelta(hours=8)
+truck_3.start_time = timedelta(hours=9, minutes=5)
 
 # Make deliveries
 en_route_status(truck_1)
 deliver(truck_1)
-en_route_status(truck_2)
-deliver(truck_2)
-truck_3.start_time = min(truck_1.return_time, truck_2.return_time) # Send out truck 3 when one of the other trucks gets back
 en_route_status(truck_3)
 deliver(truck_3)
+truck_2.start_time = min(truck_1.return_time, truck_3.return_time) # Send out truck 2 when one of the other trucks gets back
+en_route_status(truck_2)
+deliver(truck_2)
 
 # Function to get total mileage of all trucks
 def total_mileage():
@@ -182,12 +207,16 @@ def parse_time_to_timedelta(time_str):
 def get_package_status(pid, cur_time):
     results = package_log.package_lookup(pid)
     cur_time = parse_time_to_timedelta(cur_time)
-    if cur_time < results[-1]:
-        return (f"\nPackage {pid} is at the hub at {cur_time}")
-    elif cur_time < results[-2][1]:
-        return (f"\nPackage {pid} is en route at {cur_time}")
+    if results[-1] == "Delayed on flight---will not arrive to depot until 9:05 am" and cur_time < timedelta(hours=9, minutes =5):
+        return (f"\nPackage {pid} is on flight at {cur_time}. It will be delivered to {results[0]} before the {results[1]} deadline on {results[-2]}.")
+    elif results[-1] == "Wrong address listed" and cur_time < timedelta(hours=10, minutes =20):
+        return (f"\nPackage {pid} is at the hub at {cur_time}. It will be delivered once the correct address is provided, before the {results[1]} deadline on {results[-2]}.")
+    elif cur_time < results[-3]:
+        return (f"\nPackage {pid} is at the hub at {cur_time}. It will be delivered to {results[0]} before the {results[1]} deadline on {results[-2]}.")
+    elif cur_time < results[-4][1]:
+        return (f"\nPackage {pid} is en route at {cur_time} to {results[0]} and will be delivered before the {results[1]} deadline on {results[-2]}.")
     else:
-        return (f"\nPackage {pid} was delivered at {results[-2][1]}")
+        return (f"\nPackage {pid} was delivered at {results[-4][1]} to {results[0]} before the {results[1]} deadline on {results[-2]}.")
 
 def get_valid_time_input(prompt):
     while True:

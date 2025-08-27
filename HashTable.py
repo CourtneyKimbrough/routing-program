@@ -19,7 +19,7 @@ class HashTable:
         index = self.hash_function(key)
         for k, v in self.table[index]:
             if k == key:
-                return v.address, v.deadline, v.city, v.zip, v.weight, v.status, v.hub_depart
+                return v.address, v.deadline, v.city, v.zip, v.weight, v.status, v.hub_depart, v.truck, v.notes
         return None
     
     # Look up function that takes two locations and returns the distance between them
